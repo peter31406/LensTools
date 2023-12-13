@@ -1234,8 +1234,7 @@ class Spin0(object):
 
 		"""
 		#The other map must be of the same type as this one
-		# Modified by Shu-Fan Chen 09/15/2021
-		#assert isinstance(other,self.__class__)
+		assert isinstance(other,self.__class__)
 
 		if statistic=="power_spectrum":
 			
@@ -1271,101 +1270,7 @@ class Spin0(object):
 
 		else:
 
-			return statistic(self,other,**kwargs)
-
-	################################################################################################################################################
-	# Modified by Shu-Fan Chen on 11/07/2021
-	def powerSpectrumSmooth(self,l_edges,scale):
-
-		"""
-		Measures the power spectrum of the convergence map at the multipole moments specified in the input
-
-		:param l_edges: Multipole bin edges
-		:type l_edges: array
-
-		:param scale: scaling to apply to the square of the Fourier pixels before harmonic azimuthal averaging. Must be a function that takes the array of multipole magnitudes as an input and returns an array of real numbers 
-		:type scale: callable.
-
-		:returns: (l -- array,Pl -- array) = (binned multipole moments, power spectrum at multipole moments)
-		:rtype: tuple.
-
-		>>> test_map = ConvergenceMap.load("map.fit")
-		>>> l_edges = np.arange(200.0,5000.0,200.0)
-		>>> l,Pl = test_map.powerSpectrum(l_edges)
-
-		"""
-
-		assert not self._masked,"Power spectrum calculation for masked maps is not allowed yet!"
-		assert l_edges is not None
-
-		if self.side_angle.unit.physical_type=="length":
-			raise NotImplementedError("Power spectrum measurement not implemented yet if side physical unit is length!")
-
-		l = 0.5*(l_edges[:-1] + l_edges[1:])
-
-		#Fourier grid
-		lx,ly = np.meshgrid(fftengine.fftfreq(self.data.shape[0]),fftengine.rfftfreq(self.data.shape[1]),indexing="ij")
-		l_squared = (lx**2 + ly**2)*(360./self.side_angle.to(u.deg).value*self.data.shape[0])**2
-
-		#Calculate the Fourier transform of the map with numpy FFT
-		ft_map = fftengine.rfft2(self.data)
-		ft_map *= np.exp(-0.5*scale**2*l_squared)
-
-		#Compute the power spectrum with the C backend implementation
-		power_spectrum = _topology.rfft2_azimuthal(ft_map,ft_map,self.side_angle.to(u.deg).value,l_edges,None)
-
-		#Output the power spectrum
-		return l,power_spectrum
-
-	################################################################################################################################################
-	# Modified by Shu-Fan Chen on 11/07/2021
-	def crossSmooth(self,other,idxD,l_edges,scale):
-
-		"""
-		Measures the power spectrum of the convergence map at the multipole moments specified in the input
-
-		:param l_edges: Multipole bin edges
-		:type l_edges: array
-
-		:param scale: scaling to apply to the square of the Fourier pixels before harmonic azimuthal averaging. Must be a function that takes the array of multipole magnitudes as an input and returns an array of real numbers 
-		:type scale: callable.
-
-		:param idxD: [x,y] to indicate whether we should smooth the map. 0 for no and 1 for yes
-
-		:returns: (l -- array,Pl -- array) = (binned multipole moments, power spectrum at multipole moments)
-		:rtype: tuple.
-
-		>>> test_map = ConvergenceMap.load("map.fit")
-		>>> l_edges = np.arange(200.0,5000.0,200.0)
-		>>> l,Pl = test_map.powerSpectrum(l_edges)
-
-		"""
-
-		assert not self._masked,"Power spectrum calculation for masked maps is not allowed yet!"
-		assert l_edges is not None
-
-		if self.side_angle.unit.physical_type=="length":
-			raise NotImplementedError("Power spectrum measurement not implemented yet if side physical unit is length!")
-
-		l = 0.5*(l_edges[:-1] + l_edges[1:])
-
-		#Fourier grid
-		lx,ly = np.meshgrid(fftengine.fftfreq(self.data.shape[0]),fftengine.rfftfreq(self.data.shape[1]),indexing="ij")
-		l_squared = (lx**2 + ly**2)*(360./self.side_angle.to(u.deg).value*self.data.shape[0])**2
-
-		#Calculate the Fourier transform of the map with numpy FFT
-		ft_map1 = fftengine.rfft2(self.data)
-		if idxD[0] == 1:
-			ft_map1 *= np.exp(-0.5*scale**2*l_squared)
-		ft_map2 = fftengine.rfft2(other.data)
-		if idxD[1] == 1:
-			ft_map2 *= np.exp(-0.5*scale**2*l_squared)
-
-		#Compute the power spectrum with the C backend implementation
-		power_spectrum = _topology.rfft2_azimuthal(ft_map1,ft_map2,self.side_angle.to(u.deg).value,l_edges,None)
-
-		#Output the power spectrum
-		return l,power_spectrum 
+			return statistic(self,other,**kwargs) 
 
 
 	################################################################################################################################################
@@ -1548,75 +1453,6 @@ class Spin0(object):
 		#Calculate bispectrum
 		if configuration in ("equilateral","folded"):
 			bispectrum = _topology.bispectrum(ft_map,ft_map,ft_map,self.side_angle.to(u.deg).value,l_edges,configuration,ratio)
-		else:
-			raise NotImplementedError("Bispectrum configuration '{0}' not implemented!".format(configuration))
-
-		#Return
-		return l,bispectrum
-
-
-	################################################################################################################################################
-	# Modified by Shu-Fan Chen 10/05/2021
-	def bispectrumCross(self,mapCross1,mapCross2,l_edges,ratio=0.5,configuration="equilateral",scale=None):
-
-		"""
-		Calculates the bispectrum of the map in the equilateral or folded configuration
-
-		:mapCross1: First map to do the cross-correlation
-		:type mapCross1: Spin0
-
-		:mapCross2: Second map to do the cross-correlation
-		:type mapCross2: Spin0
-
-		:param l_edges: Multipole bin edges: these are the side of the triangle in the equilateral configuration or the base of the triangle in the folded configuration
-		:type l_edges: array
-
-		:param ratio: ratio between one of the triangle sides and the base in the folded configuration. Must be between 0 and 1
-		:type ratio: float.
-
-		:param configuration: must be either "equilateral" or "folded"
-		:type configuration: str.
-
-		:param scale: scaling to apply to the cube of the Fourier pixels before harmonic azimuthal averaging. Must be a function that takes the array of multipole magnitudes as an input and returns an array of real positive numbers
-		:type scale: callable.
-
-		:returns: (multipoles, bispectrum at multipoles)
-		:rtype: tuple.
-
-		"""
-
-		assert not self._masked,"Bispectrum calculation for masked maps is not allowed yet!"
-		assert l_edges is not None
-
-		if self.side_angle.unit.physical_type=="length":
-			raise NotImplementedError("Bispectrum measurement not implemented yet if side physical unit is length!")
-		if mapCross1.side_angle.unit.physical_type=="length":
-			raise NotImplementedError("Bispectrum measurement not implemented yet if side physical unit is length!")
-		if mapCross2.side_angle.unit.physical_type=="length":
-			raise NotImplementedError("Bispectrum measurement not implemented yet if side physical unit is length!")	
-
-		#Check folding ratio
-		if (configuration=="folded") and not(ratio>0 and ratio<1):
-			raise ValueError("Folding ratio should be between 0 and 1!")
-
-		#Multipole edges
-		l = 0.5*(l_edges[:-1] + l_edges[1:])
-
-		#Calculate FFT of the map via FFT
-		ft_map = fftengine.rfft2(self.data)
-		ft_mapCross1 = fftengine.rfft2(mapCross1.data)
-		ft_mapCross2 = fftengine.rfft2(mapCross2.data)
-
-		#Scale pixels if scaling is provided
-		if scale is not None:
-			sc = scale(self.getEll())
-			ft_map *= np.cbrt(sc)
-			ft_mapCross1 *= np.cbrt(sc)
-			ft_mapCross2 *= np.cbrt(sc)
-
-		#Calculate bispectrum
-		if configuration in ("equilateral","folded"):
-			bispectrum = _topology.bispectrum(ft_map,ft_mapCross1,ft_mapCross2,self.side_angle.to(u.deg).value,l_edges,configuration,ratio)
 		else:
 			raise NotImplementedError("Bispectrum configuration '{0}' not implemented!".format(configuration))
 

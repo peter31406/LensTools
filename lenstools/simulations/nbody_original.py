@@ -801,20 +801,15 @@ class NbodySnapshot(object):
 			lensing_potential = density_projected
 
 		#Multiply by the normalization factors
-		# Modified by Shu-Fan Chen 09/16/2021
-		if kind=="potential":
-			lensing_potential = lensing_potential * cosmo_normalization * density_normalization
-			lensing_potential = lensing_potential.decompose()
-		else:
-			lensing_potential = lensing_potential
-
-		#assert lensing_potential.unit.physical_type=="dimensionless"
+		lensing_potential = lensing_potential * cosmo_normalization * density_normalization
+		lensing_potential = lensing_potential.decompose()
+		assert lensing_potential.unit.physical_type=="dimensionless"
 
 		#Add units to lensing potential
 		if kind=="potential":
 			lensing_potential *= rad**2
 		else:
-			lensing_potential = lensing_potential
+			lensing_potential = lensing_potential.value
 
 		#Return
 		return lensing_potential,bin_resolution,NumPartTotal

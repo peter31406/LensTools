@@ -209,11 +209,7 @@ class Plane(Spin0):
 		if self.space=="real":
 
 			#Roll in real space
-			#Modified by Shu-Fan Chen 09/11/2021
-			firstRoll = np.random.randint(0,self.data.shape[0])
-			secondRoll = np.random.randint(0,self.data.shape[1])
-			self.data = np.roll(np.roll(self.data,firstRoll,axis=0),secondRoll,axis=1)	
-			return firstRoll, secondRoll
+			self.data = np.roll(np.roll(self.data,np.random.randint(0,self.data.shape[0]),axis=0),np.random.randint(0,self.data.shape[1]),axis=1)	
 		
 		elif self.space=="fourier":
 
@@ -1050,12 +1046,11 @@ class RayTracer(object):
 			logstderr.debug("Read plane: peak memory usage {0:.3f} (task)".format(peakMemory()))
 			
 			logray.info("Randomly rolling lens at z={0:.3f} along its axes...".format(current_lens.redshift))
-			#Modified by Shu-Fan Chen 09/11/2021
-			firstRoll, secondRoll = current_lens.randomRoll()
+			current_lens.randomRoll()
 			logray.info("Rolled lens at z={0:.3f} along its axes...".format(current_lens.redshift))
 			logstderr.debug("Rolled lens: peak memory usage {0:.3f} (task)".format(peakMemory()))
-			#Modified by Shu-Fan Chen 09/11/2021
-			return current_lens, firstRoll, secondRoll
+
+			return current_lens
 
 		else:
 			raise TypeError("Lens format not recognized!")
@@ -1074,16 +1069,8 @@ class RayTracer(object):
 		if seed is not None:
 			np.random.seed(seed)
 
-		#Modified by Shu-Fan Chen 09/11/2021
-		firstRoll = list()
-		secondRoll = list()
 		for lens in self.lens:
-			tmp = lens.randomRoll(seed=None,lmesh=self.lmesh)
-			firstRoll.append(tmp[0])
-			secondRoll.append(tmp[1])
-		firstRoll = np.array(firstRoll)
-		secondRoll = np.array(secondRoll)
-		return firstRoll, secondRoll
+			lens.randomRoll(seed=None,lmesh=self.lmesh)
 
 
 	def reorderLenses(self):
@@ -1198,18 +1185,10 @@ class RayTracer(object):
 		lens = self.lens
 
 		#This is the main loop that goes through all the lenses
-		#Modified by Shu-Fan Chen 09/11/2021
-		firstRoll = list()
-		secondRoll = list()
 		for k in range(last_lens+1):
 
 			#Load in the lens
-			#Modified by Shu-Fan Chen 09/11/2021
-			tmp = self.loadLens(lens[k])
-			current_lens = tmp[0]
-			firstRoll.append(tmp[1])
-			secondRoll.append(tmp[2])
-
+			current_lens = self.loadLens(lens[k])
 			np.testing.assert_approx_equal(current_lens.redshift,self.redshift[k],significant=4,err_msg="Loaded lens ({0}) redshift does not match info file specifications {1} neq {2}!".format(k,current_lens.redshift,self.redshift[k]))
 
 			#If transfer function is provided, scale to target redshift
@@ -1344,8 +1323,7 @@ class RayTracer(object):
 				return np.array([0.5*(current_jacobian[3] - current_jacobian[0]),-0.5*(current_jacobian[1]+current_jacobian[2])])
 
 			else:
-				#Modified by Shu-Fan Chen 09/11/2021
-				return current_jacobian, firstRoll, secondRoll
+				return current_jacobian
 
 	##################################################################################
 	###########Direct calculation of the convergence with Born approximation##########

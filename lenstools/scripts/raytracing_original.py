@@ -299,8 +299,7 @@ def singleRedshift(pool,batch,settings,batch_id):
 		else:
 
 			#Trace the ray deflections
-			#Modified by Shu-Fan Chen 09/11/2021
-			jacobian, firstRoll, secondRoll = tracer.shoot(pos,z=source_redshift,kind="jacobians")
+			jacobian = tracer.shoot(pos,z=source_redshift,kind="jacobians")
 
 			now = time.time()
 			logdriver.info("Jacobian ray tracing for realization {0} completed in {1:.3f}s".format(r+1,now-last_timestamp))
@@ -313,16 +312,8 @@ def singleRedshift(pool,batch,settings,batch_id):
 				
 				if settings.convergence:
 					savename = batch.syshandler.map(os.path.join(save_path,"WLconv_z{0:.2f}_{1:04d}r.{2}".format(source_redshift,r+1,settings.format)))
-					#Modified by Shu-Fan Chen 09/11/2021
-					savenameFirstRoll = batch.syshandler.map(os.path.join(save_path,"WLconv_z{0:.2f}_{1:04d}r_firstRoll.npy".format(source_redshift,r+1)))
-					savenameSecondRoll = batch.syshandler.map(os.path.join(save_path,"WLconv_z{0:.2f}_{1:04d}r_secondRoll.npy".format(source_redshift,r+1)))
-					savenameLens = batch.syshandler.map(os.path.join(save_path,"WLconv_z{0:.2f}_{1:04d}r_lens.npy".format(source_redshift,r+1)))
 					logdriver.info("Saving convergence map to {0}".format(savename)) 
 					convMap.save(savename)
-					np.save(savenameFirstRoll,firstRoll)
-					np.save(savenameSecondRoll,secondRoll)
-					np.save(savenameLens,tracer.lens)
-
 					logdriver.debug("Saved convergence map to {0}".format(savename)) 
 
 			##############################################################################################################################
